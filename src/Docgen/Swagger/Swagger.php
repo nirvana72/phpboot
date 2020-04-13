@@ -57,6 +57,13 @@ class Swagger extends SwaggerObject
             $op->summary = $route->getSummary();
             $op->description = $route->getDescription();
 
+            // 方法名称后面加 -auth, 说明此api需要登录权限
+            if (substr($op->summary, -5) === '-auth') {
+                $op->summary = substr($op->summary, 0, -5);
+                $auth['api_key'] = [];
+                $op->security = [$auth];
+            }
+            
             $op->parameters = $this->getParamsSchema($app, $controller, $action, $route);
             if($this->hasFileParam($route)){
                 $op->consumes = ['multipart/form-data'];

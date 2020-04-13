@@ -28,11 +28,21 @@ class HookAnnotationHandler
             Logger::debug("The annotation \"@{$ann->name} {$ann->description}\" of {$container->getClassName()}::$target should be used with parent route");
             return ;
         }
-        $params = new AnnotationParams($ann->description, 2);
+        
+        // 多获取一个参数 * @hook \App\Hooks\TestHook test.dosomething1
+        $params = new AnnotationParams($ann->description, 2); 
+        // $params = new AnnotationParams($ann->description, 2);
+        
         count($params)>0 or \PhpBoot\abort("The annotation \"@{$ann->name} {$ann->description}\" of {$container->getClassName()}::$target require at least one param, 0 given");
         $className = $params[0];
         $className = TypeHint::normalize($className, $container->getClassName());
         is_subclass_of($className, HookInterface::class) or \PhpBoot\abort("$className is not a HookInterface on the annotation \"@{$ann->name} {$ann->description}\" of {$container->getClassName()}::$target");
+        
+        // 取得参数并挂载到 $className 字符串后面 以@xxx形式存在
+        if (isset($params[1])) {
+            $className .= '@' . $params[1];
+        }
+
         $route->addHook($className);
     }
 }

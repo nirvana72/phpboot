@@ -52,7 +52,34 @@ class Route
                 };
                 foreach (array_reverse($this->hooks) as $hookName){
                     $next = function($request)use($app, $hookName, $next){
-                        $hook = $app->get($hookName);
+
+                        // 判断是否有 @参数 有就取出放入 $request对像中转一下
+                        $parameters = null;
+                        if (strpos($hookName, '@')) {
+                            // @nij hookname 如果有参数， 会带在参数名后面，以@xxx形式存在
+                            $arr = explode('@', $hookName);
+                            $hookName = $arr[0];
+                            $parameters['params'] = $arr[1];
+                        }
+                        if (strpos($hookName, 'LogHook')) {
+                        // @nij 日志钩子，调用时传入路由，作API调用统计用
+                            $parameters['route'] = $this->getUri();
+                        }
+                        if (strpos($hookName, 'AuthHook')) {
+                            // 权限验证钩子，如果没有@参数，默认加个空值
+                            if ($parameters === null) {
+                                $parameters['params'] = '';
+                            }
+                        }
+
+                        $hook = null;
+                        if ($parameters !== null){
+                            $hook = $app->make($hookName, $parameters);
+                        }
+                        else {
+                            $hook = $app->get($hookName);
+                        }
+
                         /**@var $hook HookInterface*/
                         return $hook->handle($request, $next);
                     };
