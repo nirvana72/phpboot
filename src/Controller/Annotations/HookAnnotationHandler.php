@@ -29,19 +29,17 @@ class HookAnnotationHandler
             return ;
         }
         
-        // 多获取一个参数 * @hook \App\Hooks\TestHook test.dosomething1
-        $params = new AnnotationParams($ann->description, 2); 
-        // $params = new AnnotationParams($ann->description, 2);
+        $params = new AnnotationParams($ann->description, 2);
         
         count($params)>0 or \PhpBoot\abort("The annotation \"@{$ann->name} {$ann->description}\" of {$container->getClassName()}::$target require at least one param, 0 given");
         $className = $params[0];
         $className = TypeHint::normalize($className, $container->getClassName());
         is_subclass_of($className, HookInterface::class) or \PhpBoot\abort("$className is not a HookInterface on the annotation \"@{$ann->name} {$ann->description}\" of {$container->getClassName()}::$target");
         
-        // 取得参数并挂载到 $className 字符串后面 以@xxx形式存在
-        if (isset($params[1])) {
-            $className .= '@' . $params[1];
-        }
+        // 把method, uri拼接成字符串放在 hook class 后面
+        // 当route被调用并解析hook时， 再拆出来使用， 一般用作鉴权
+        $hookParams = strtolower("@{$route->getMethod()}:{$route->getUri()}");
+        $className .= $hookParams;
 
         $route->addHook($className);
     }
