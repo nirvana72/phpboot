@@ -212,6 +212,8 @@ class Application implements ContainerInterface, FactoryInterface, \DI\InvokerIn
                 $class_name = $namespace . '\\' . substr($entry, 0, strlen($entry) - 4);
                 $this->loadRoutesFromClass($class_name, $hooks);
             } else {
+              // 加载路由时，递归子文件夹
+              $this->loadRoutesFromPath($path, $namespace . '\\' . $entry);
                 //\Log::debug($path.' ignored');
             }
         }
