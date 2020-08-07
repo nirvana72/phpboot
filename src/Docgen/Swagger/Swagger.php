@@ -57,8 +57,8 @@ class Swagger extends SwaggerObject
             $op->summary = $route->getSummary();
             $op->description = $route->getDescription();
 
-            // 方法名称后面加 -auth, 说明此api需要登录权限
-            if (substr($op->summary, -5) === '-auth') {
+            // 生成swagger文档时,默认所有api都需要登录授权,除非在说明后面加 -free
+            if (substr($op->summary, -5) !== '-free') {
                 $op->summary = substr($op->summary, 0, -5);
                 $auth['api_key'] = [];
                 $op->security = [$auth];
