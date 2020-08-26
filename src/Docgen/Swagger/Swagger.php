@@ -49,7 +49,20 @@ class Swagger extends SwaggerObject
         $tag = new TagObject();
         $tag->name = $controller->getSummary();
         $tag->description = $controller->getDescription();
-        $this->tags[] = $tag;
+
+        // 多个controller 可以指定同名的 tag
+        $hasTag = false;
+        if ($this->tags) {
+          foreach($this->tags as $t) {
+            if ($t->name === $tag->name) {
+              $hasTag = true;
+              break;
+            }
+          }
+        }
+        if (!$hasTag) {
+          $this->tags[] = $tag;
+        }
 
         foreach ($controller->getRoutes() as $action => $route) {
             $op = new OperationObject();
