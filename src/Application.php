@@ -234,11 +234,17 @@ class Application implements ContainerInterface, FactoryInterface, \DI\InvokerIn
     /**
      * @return ControllerContainer[]
      */
-    public function getControllers()
+    public function getControllers($namespace = '')
     {
         $controllers = [];
         foreach ($this->controllers as $name) {
+          if ($namespace !== '') {
+            if (strpos($name, $namespace) === 0) {
+              $controllers[] = $this->controllerContainerBuilder->build($name);
+            }
+          } else {
             $controllers[] = $this->controllerContainerBuilder->build($name);
+          }
         }
         return $controllers;
     }
