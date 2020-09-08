@@ -23,19 +23,17 @@ class SwaggerProvider
      */
     static public function register(Application $app,
                                     callable $callback = null,
-                                    $namesapce)
+                                    $namesapces)
     {
-      // 'App\Controllers\Admin' -> admin
-      $path = explode('\\', $namesapce);
-      $path = $path[count($path) - 1];
-      $path = strtolower($path);
-      $app->addRoute('GET', "/swagger-{$path}.json", function (Application $app) use($callback, $namesapce){
-        $swagger = new Swagger();
-        $swagger->appendControllers($app, $app->getControllers($namesapce));
-        if($callback){
-            $callback($swagger);
-        }
-        return new Response($swagger->toJson());
-      });
+      foreach($namesapces as $key => $namesapce) {
+        $app->addRoute('GET', "/swagger-{$key}.json", function (Application $app) use($callback, $namesapce){
+          $swagger = new Swagger();
+          $swagger->appendControllers($app, $app->getControllers($namesapce));
+          if($callback){
+              $callback($swagger);
+          }
+          return new Response($swagger->toJson());
+        });
+      }
     }
 }
