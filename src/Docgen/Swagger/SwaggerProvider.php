@@ -26,7 +26,7 @@ class SwaggerProvider
                                     $namesapces)
     {
       foreach($namesapces as $key => $namesapce) {
-        $app->addRoute('GET', "/swagger-{$key}.json", function (Application $app) use($callback, $namesapce){
+        $app->addRoute('GET', "/swagger/{$key}.json", function (Application $app) use($callback, $namesapce){
           $swagger = new Swagger();
           $swagger->appendControllers($app, $app->getControllers($namesapce));
           if($callback){
