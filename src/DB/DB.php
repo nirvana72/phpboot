@@ -231,11 +231,11 @@ class DB{
     // ------------------------------------------------------
     // nijia 扩展
 
-    public function querySql($sql, $params = [], $camelize = true) {
+    public function query($sql, $params = [], $camelize = true) {
       return $this->_dbCommand($sql, $params, 'query', $camelize);
     }
 
-    public function execSql($sql, $params = []) {
+    public function exec($sql, $params = []) {
       return $this->_dbCommand($sql, $params, 'exec');
     }
 
