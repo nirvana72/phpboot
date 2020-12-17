@@ -81,6 +81,9 @@ class DB{
     {
         $this->app = $app;
         $this->connection = $connection;
+        // nijia 修改
+        $this->connection->setAttribute(\PDO::ATTR_EMULATE_PREPARES, false); 
+        // $this->connection->exec('set names utf8mb4');
     }
 
     /**
@@ -223,4 +226,65 @@ class DB{
     protected $app;
 
     protected $inTransaction = false;
+
+
+    // ------------------------------------------------------
+    // nijia 扩展
+
+    public function querySql($sql, $params = [], $camelize = true) {
+      return $this->_dbCommand($sql, $params, 'query', $camelize);
+    }
+
+    public function execSql($sql, $params = []) {
+      return $this->_dbCommand($sql, $params, 'exec');
+    }
+
+    private function _dbCommand($sql, $params, $cmd, $camelize = true) {
+      if (count($params) > 0) {
+        $stmt = $this->getConnection()->prepare($sql);
+        foreach($params as $k => $v) {
+          $stmt->bindValue($k, $v);
+        }
+        $stmt->execute();
+        if ($cmd === 'query') {
+          $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+          if ($camelize) {
+            return $this->camelizeRows($rows);
+          } else {
+            return $rows;
+          }        
+        } else { // exec
+          return $stmt->rowCount(); // 返回行数
+        }
+      } else {
+        if ($cmd === 'query') {
+          $rows = $this->getConnection()->query($sql)->fetchAll(\PDO::FETCH_ASSOC);
+          if ($camelize) {
+            return $this->camelizeRows($rows);
+          } else {
+            return $rows;
+          }
+        } else { // exec
+          return $this->getConnection()->exec($sql); // 返回行数
+        }
+      }
+    }
+
+    private function camelizeRows($rows) {
+      $rowsTmp = [];
+      foreach($rows as $row) {
+        $rowTmp = [];
+        foreach($row as $k => $v) {
+          $k = $this->camelizeStr($k);
+          $rowTmp[$k] = $v;
+        }
+        array_push($rowsTmp, $rowTmp);
+      }
+      return $rowsTmp;
+    }
+
+    private function camelizeStr($uncamelized_words, $separator='_') {
+      $uncamelized_words = $separator. str_replace($separator, " ", strtolower($uncamelized_words));
+      return ltrim(str_replace(" ", "", ucwords($uncamelized_words)), $separator );
+    }
 }
