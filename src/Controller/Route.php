@@ -52,14 +52,17 @@ class Route
                 };
                 foreach (array_reverse($this->hooks) as $hookName){
                     $next = function($request)use($app, $hookName, $next){
-
-                        // 在HookAnnotationHandler 中 把method, uri拼接成字符串放在 hook class 后面
-                        // TestHook@get:/client/test/test/{id}
-                        $arr = explode('@', $hookName);
-                        $hookName = $arr[0];
-                        // get:/client/test/test/{id}
-                        // 在hook类中用构造函数取， 构造函数参数为 $uri
-                        $parameters['uri'] = $arr[1]; 
+                        // @ nij 给hook 类提供构造函数参数
+                        $parameters['method'] = $this->getMethod();
+                        $parameters['uri']    = $this->getUri();
+                        $parameters['params'] = '';
+                        
+                        if (strpos($hookName, '@')) {
+                          // @nij hookname 如果有参数， 会带在参数名后面，以@xxx形式存在
+                          $arr = explode('@', $hookName);
+                          $hookName = $arr[0];
+                          $parameters['params'] = $arr[1];
+                        }
 
                         $hook = $app->make($hookName, $parameters);
 

@@ -36,10 +36,10 @@ class HookAnnotationHandler
         $className = TypeHint::normalize($className, $container->getClassName());
         is_subclass_of($className, HookInterface::class) or \PhpBoot\abort("$className is not a HookInterface on the annotation \"@{$ann->name} {$ann->description}\" of {$container->getClassName()}::$target");
         
-        // 把method, uri拼接成字符串放在 hook class 后面
-        // 当route被调用并解析hook时， 再拆出来使用， 一般用作鉴权
-        $hookParams = strtolower("@{$route->getMethod()}:{$route->getUri()}");
-        $className .= $hookParams;
+        // 如果 hook 有参数, 把参数并挂载到 $className 字符串后面 以@xxx形式存在, 解析的时候以@分割
+        if (isset($params[1])) {
+          $className .= '@' . $params[1];
+        }
 
         $route->addHook($className);
     }
