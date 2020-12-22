@@ -208,8 +208,8 @@ class Application implements ContainerInterface, FactoryInterface, \DI\InvokerIn
                 continue;
             }
             $path = $fromPath . '/' . str_replace('\\', '/', $entry);
-            if (is_file($path) && substr_compare($entry, '.php', strlen($entry) - 4, 4, true) == 0) {
-                $class_name = $namespace . '\\' . substr($entry, 0, strlen($entry) - 4);
+            if (is_file($path) && substr($entry, -14) === 'Controller.php') {
+                $class_name = $namespace . '\\' . substr($entry, 0, -4);
                 $this->loadRoutesFromClass($class_name, $hooks);
             } else {
               // 加载路由时，递归子文件夹

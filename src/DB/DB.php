@@ -81,9 +81,6 @@ class DB{
     {
         $this->app = $app;
         $this->connection = $connection;
-        // nijia 修改
-        $this->connection->setAttribute(\PDO::ATTR_EMULATE_PREPARES, false); 
-        // $this->connection->exec('set names utf8mb4');
     }
 
     /**
@@ -241,7 +238,7 @@ class DB{
 
     private function _dbCommand($sql, $params, $cmd, $camelize = true) {
       if (count($params) > 0) {
-        $stmt = $this->getConnection()->prepare($sql);
+        $stmt = $this->connection->prepare($sql);
         foreach($params as $k => $v) {
           $stmt->bindValue($k, $v);
         }
@@ -258,14 +255,14 @@ class DB{
         }
       } else {
         if ($cmd === 'query') {
-          $rows = $this->getConnection()->query($sql)->fetchAll(\PDO::FETCH_ASSOC);
+          $rows = $this->connection->query($sql)->fetchAll(\PDO::FETCH_ASSOC);
           if ($camelize) {
             return $this->camelizeRows($rows);
           } else {
             return $rows;
           }
         } else { // exec
-          return $this->getConnection()->exec($sql); // 返回行数
+          return $this->connection->exec($sql); // 返回行数
         }
       }
     }
