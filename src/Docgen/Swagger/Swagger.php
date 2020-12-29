@@ -83,9 +83,10 @@ class Swagger extends SwaggerObject
                 $op->consumes = ['multipart/form-data'];
             }
 
-            $op->responses['200'] = $this->getReturnSchema($app, $route);
-
+            $op->responses['200'] = $this->getReturnSchema($app, $route->getReturnString()?:'void');
+            
             $op->responses += $this->getExceptionsSchema($app, $controller, $action, $route);
+            
             $uri = $app->getFullUri($route->getUri());
             if (!isset($this->paths[$uri])) {
                 $this->paths[$uri] = [];
@@ -97,10 +98,10 @@ class Swagger extends SwaggerObject
 
     /**
      * @param Application $app
-     * @param Route $route
+     * @param string $returnString
      * @return ResponseObject
      */
-    public function getReturnSchema(Application $app, Route $route) {
+    public function getReturnSchema(Application $app, $returnString) {
         $retName = 'ret';
         $msgName = 'msg';
         $dataName = 'data';
@@ -117,22 +118,21 @@ class Swagger extends SwaggerObject
         $schema->properties[$retName] = $retSchema;
         $msgSchema = new PrimitiveSchemaObject();
         $msgSchema->type = 'string';
-        $schema->properties[$msgName] = $msgSchema;
-        $str = $route->getReturnString();
-        if ($str === 'string') {
+        $schema->properties[$msgName] = $msgSchema;       
+        if ($returnString === 'string') {
             $msgSchema = new PrimitiveSchemaObject();
             $msgSchema->type = 'string';
             $schema->properties[$dataName] = $msgSchema;
         }
-        elseif ($str === 'int') {
+        elseif ($returnString === 'int') {
             $msgSchema = new PrimitiveSchemaObject();
             $msgSchema->type = 'integer';
             $schema->properties[$dataName] = $msgSchema;
         }
-        elseif ($str === 'void') {
+        elseif ($returnString === 'void') {
 
         } else {
-            $array = json_decode($str, true);
+            $array = json_decode($returnString, true);
             $schema->properties[$dataName] = $this->getPropertySchema($array);
         }
         $responseObject = new ResponseObject();
