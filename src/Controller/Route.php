@@ -209,6 +209,22 @@ class Route
     }
 
     /**
+     * @return string
+     */
+    public function getReturnString()
+    {
+        return $this->returnString;
+    }
+    
+    /**
+     * @param string $returnString
+     */
+    public function setReturnString($returnString)
+    {
+        $this->returnString = $returnString;
+    }
+
+    /**
      * @return string[]
      */
     public function getPathParams()
@@ -287,5 +303,10 @@ class Route
      * @var string[]
      */
     private $pathParams =[];
+    
+    /**
+     * @var string
+     */
+    private $returnString = '';
 
 }

@@ -83,9 +83,8 @@ class Swagger extends SwaggerObject
                 $op->consumes = ['multipart/form-data'];
             }
 
-            if ($returnSchema = $this->getReturnSchema($app, $controller, $action, $route)) {
-                $op->responses['200'] = $returnSchema;
-            }
+            $op->responses['200'] = $this->getReturnSchema($app, $route);
+
             $op->responses += $this->getExceptionsSchema($app, $controller, $action, $route);
             $uri = $app->getFullUri($route->getUri());
             if (!isset($this->paths[$uri])) {
@@ -94,6 +93,79 @@ class Swagger extends SwaggerObject
             $method = strtolower($route->getMethod());
             $this->paths[$uri][$method] = $op;
         }
+    }
+
+    /**
+     * @param Application $app
+     * @param Route $route
+     * @return ResponseObject
+     */
+    public function getReturnSchema(Application $app, Route $route) {
+        $retName = 'ret';
+        $msgName = 'msg';
+        $dataName = 'data';
+        if ($app->has('swagger')) {
+            $config = $app->get('swagger');
+            $retName = $config['retName'];
+            $msgName = $config['msgName'];
+            $dataName = $config['dataName'];
+        }
+
+        $schema = new SimpleModelSchemaObject();
+        $retSchema = new PrimitiveSchemaObject();
+        $retSchema->type = 'integer';
+        $schema->properties[$retName] = $retSchema;
+        $msgSchema = new PrimitiveSchemaObject();
+        $msgSchema->type = 'string';
+        $schema->properties[$msgName] = $msgSchema;
+        $str = $route->getReturnString();
+        if ($str === 'string') {
+            $msgSchema = new PrimitiveSchemaObject();
+            $msgSchema->type = 'string';
+            $schema->properties[$dataName] = $msgSchema;
+        }
+        elseif ($str === 'int') {
+            $msgSchema = new PrimitiveSchemaObject();
+            $msgSchema->type = 'integer';
+            $schema->properties[$dataName] = $msgSchema;
+        }
+        elseif ($str === 'void') {
+
+        } else {
+            $array = json_decode($str, true);
+            $schema->properties[$dataName] = $this->getPropertySchema($array);
+        }
+        $responseObject = new ResponseObject();
+        // $responseObject->description = '正常返回的描述';
+        $responseObject->schema = $schema;
+        return $responseObject;
+    }
+
+    /**
+     * @param string $name
+     * @param object $value
+     * @return SimpleModelSchemaObject
+     */
+    private function getPropertySchema($array) {
+        $schema = new SimpleModelSchemaObject();
+        foreach($array as $k => $v) {
+            if (is_array($v)) {
+                $arraySchema = new ArraySchemaObject();
+                if (is_array($v[0])) {
+                    $arraySchema->items = $this->getPropertySchema($v[0]);
+                } else {
+                    $propertySchema = new PrimitiveSchemaObject();
+                    $propertySchema->type = is_numeric($v) ? 'integer' : 'string';
+                    $arraySchema->items = $propertySchema;
+                }
+                $schema->properties[$k] = $arraySchema;
+            } else {
+                $propertySchema = new PrimitiveSchemaObject();
+                $propertySchema->type = is_numeric($v) ? 'integer' : 'string';
+                $schema->properties[$k] = $propertySchema;
+            }
+        }
+        return $schema;
     }
 
     /**
@@ -195,66 +267,6 @@ class Swagger extends SwaggerObject
         return $schemas;
     }
 
-    /**
-     * @param Application $app
-     * @param ControllerContainer $controller
-     * @param $action
-     * @param Route $route
-     * @return null|ResponseObject
-     */
-    public function getReturnSchema(Application $app,
-                                    ControllerContainer $controller,
-                                    $action,
-                                    Route $route)
-    {
-        $response = $route->getResponseHandler();
-        if (!$response) {
-            return null;
-        }
-        $mappings = $response->getMappings();
-        $output = [];
-        $schema = new ResponseObject();
-        foreach ($mappings as $key => $map) {
-            if (substr($key, 0, strlen('response.')) == 'response.') {
-                $key = substr($key, strlen('response.'));
-            }
-            ArrayHelper::set($output, $key, $map);
-        }
-        //TODO 支持 header、status 等
-        if (isset($output['content'])) {
-            $content = $output['content'];
-            if ($content instanceof ReturnMeta) {
-                $schema->description = $content->description;
-                $schema->schema = $this->getAnySchema($app, $controller, $action, $route, $content->container);
-            } elseif (is_array($content)) {
-                $tmpSchema = $this->makeTempSchema($app, $controller, $action, $route, $content, 'Res');
-                $schema->schema = $tmpSchema;
-
-            }
-            //$schema->examples = ['application/json'=>$this->makeExample($content)];
-            return $schema;
-        }
-        return null;
-    }
-
-    /**
-     * @param $content
-     */
-    public function makeExample($content)
-    {
-        if ($content instanceof ReturnMeta || $content instanceof ParamMeta) {
-            return $this->makeExample($content->container);
-        }elseif ($content instanceof TypeContainerInterface){
-            return $content->makeExample();
-        }elseif(is_array($content)) {
-            $res = [];
-            foreach ($content as $k => $v) {
-                $res[$k] = $this->makeExample($v);
-            }
-            return $res;
-        }
-        return null;
-    }
     /**
      * @param Application $app
      * @param ControllerContainer $controller
