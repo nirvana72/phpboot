@@ -154,9 +154,7 @@ class Swagger extends SwaggerObject
                 if (is_array($v[0])) {
                     $arraySchema->items = $this->getPropertySchema($v[0]);
                 } else {
-                    $propertySchema = new PrimitiveSchemaObject();
-                    $propertySchema->type = is_numeric($v) ? 'integer' : 'string';
-                    $arraySchema->items = $propertySchema;
+                    $arraySchema->items = $this->getPropertySchema($v);
                 }
                 $schema->properties[$k] = $arraySchema;
             } else {
