@@ -149,11 +149,22 @@ class Swagger extends SwaggerObject
     private function getPropertySchema($array) {
         $schema = new SimpleModelSchemaObject();
         foreach($array as $k => $v) {
-            if (is_array($v)) {
+            if (is_array($v)) { 
+                // 值是个数组
                 $arraySchema = new ArraySchemaObject();
-                if (is_array($v[0])) {
-                    $arraySchema->items = $this->getPropertySchema($v[0]);
-                } else {
+                if (isset($v[0])) { 
+                    // 值是个普通数组
+                    if (is_array($v[0])) {
+                        // 普通数组里是关联对象
+                        $arraySchema->items = $this->getPropertySchema($v[0]);
+                    } else {
+                        // 普通数组里普通值
+                        $propertySchema = new PrimitiveSchemaObject();
+                        $propertySchema->type = is_numeric($v[0]) ? 'integer' : 'string';
+                        $arraySchema->items = $propertySchema;
+                    }
+                } else { 
+                    // 值是个关联数组
                     $arraySchema->items = $this->getPropertySchema($v);
                 }
                 $schema->properties[$k] = $arraySchema;
@@ -163,6 +174,7 @@ class Swagger extends SwaggerObject
                 $schema->properties[$k] = $propertySchema;
             }
         }
+        
         return $schema;
     }
 
