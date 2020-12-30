@@ -50,33 +50,11 @@ class Swagger extends SwaggerObject
         $tag->name = $controller->getSummary();
         $tag->description = $controller->getDescription();
 
-        // 多个controller 可以指定同名的 tag
-        $hasTag = false;
-        if ($this->tags) {
-          foreach($this->tags as $t) {
-            if ($t->name === $tag->name) {
-              $hasTag = true;
-              break;
-            }
-          }
-        }
-        if (!$hasTag) {
-          $this->tags[] = $tag;
-        }
-
         foreach ($controller->getRoutes() as $action => $route) {
             $op = new OperationObject();
             $op->tags = [$controller->getSummary()];
             $op->summary = $route->getSummary();
             $op->description = $route->getDescription();
-
-            // 生成swagger文档时,默认所有api都需要登录授权,除非在说明后面加 -free
-            if (substr($op->summary, -5) === '-free') {
-              $op->summary = substr($op->summary, 0, -5);
-            } else {
-                $auth['api_key'] = [];
-                $op->security = [$auth];
-            }
             
             $op->parameters = $this->getParamsSchema($app, $controller, $action, $route);
             if($this->hasFileParam($route)){
@@ -118,23 +96,50 @@ class Swagger extends SwaggerObject
         $schema->properties[$retName] = $retSchema;
         $msgSchema = new PrimitiveSchemaObject();
         $msgSchema->type = 'string';
-        $schema->properties[$msgName] = $msgSchema;       
-        if ($returnString === 'string') {
-            $msgSchema = new PrimitiveSchemaObject();
-            $msgSchema->type = 'string';
-            $schema->properties[$dataName] = $msgSchema;
-        }
-        elseif ($returnString === 'int') {
-            $msgSchema = new PrimitiveSchemaObject();
-            $msgSchema->type = 'integer';
-            $schema->properties[$dataName] = $msgSchema;
-        }
-        elseif ($returnString === 'void') {
+        $schema->properties[$msgName] = $msgSchema;  
 
-        } else {
-            $array = json_decode($returnString, true);
-            $schema->properties[$dataName] = $this->getPropertySchema($array);
+        $returnString = trim($returnString);
+        if ($returnString !== 'void') {
+            if (strpos($returnString, 'object[]') === 0) {
+                $returnString = trim(substr($returnString, 8));
+                $obj = json_decode($returnString);
+                $arraySchema = new ArraySchemaObject();
+                $arraySchema->items = $this->getPropertySchema($obj);
+                $schema->properties[$dataName] = $arraySchema;
+            } 
+            elseif (strpos($returnString, 'object') === 0) {
+                $returnString = trim(substr($returnString, 6));
+                $obj = json_decode($returnString);
+                $schema->properties[$dataName] = $this->getPropertySchema($obj);
+            } 
+            elseif (strpos($returnString, 'int[]') === 0) {
+                $returnString = trim(substr($returnString,  5));
+                $propertySchema = new PrimitiveSchemaObject();
+                $propertySchema->type = 'integer';
+                $arraySchema = new ArraySchemaObject();
+                $arraySchema->items = $propertySchema;
+                $schema->properties[$dataName] = $arraySchema;
+            } 
+            elseif (strpos($returnString, 'int') === 0) {
+                $msgSchema = new PrimitiveSchemaObject();
+                $msgSchema->type = 'integer';
+                $schema->properties[$dataName] = $msgSchema;
+            } 
+            elseif (strpos($returnString, 'string[]') === 0) {
+                $returnString = trim(substr($returnString,  5));
+                $propertySchema = new PrimitiveSchemaObject();
+                $propertySchema->type = 'string';
+                $arraySchema = new ArraySchemaObject();
+                $arraySchema->items = $propertySchema;
+                $schema->properties[$dataName] = $arraySchema;
+            } 
+            elseif (strpos($returnString, 'string') === 0) {
+                $msgSchema = new PrimitiveSchemaObject();
+                $msgSchema->type = 'string';
+                $schema->properties[$dataName] = $msgSchema;
+            }
         }
+        
         $responseObject = new ResponseObject();
         // $responseObject->description = '正常返回的描述';
         $responseObject->schema = $schema;
@@ -142,39 +147,30 @@ class Swagger extends SwaggerObject
     }
 
     /**
-     * @param string $name
-     * @param object $value
+     * @param object $obj
      * @return SimpleModelSchemaObject
      */
-    private function getPropertySchema($array) {
+    private function getPropertySchema($obj) {
         $schema = new SimpleModelSchemaObject();
-        foreach($array as $k => $v) {
-            if (is_array($v)) { 
-                // 值是个数组
+        foreach($obj as $k => $v) {
+            if (is_array($v)) {
                 $arraySchema = new ArraySchemaObject();
-                if (isset($v[0])) { 
-                    // 值是个普通数组
-                    if (is_array($v[0])) {
-                        // 普通数组里是关联对象
-                        $arraySchema->items = $this->getPropertySchema($v[0]);
-                    } else {
-                        // 普通数组里普通值
-                        $propertySchema = new PrimitiveSchemaObject();
-                        $propertySchema->type = is_numeric($v[0]) ? 'integer' : 'string';
-                        $arraySchema->items = $propertySchema;
-                    }
-                } else { 
-                    // 值是个关联数组
-                    $arraySchema->items = $this->getPropertySchema($v);
+                if (is_object($v[0])) {
+                    $arraySchema->items = $this->getPropertySchema($v[0]);
+                } else {
+                    $propertySchema = new PrimitiveSchemaObject();
+                    $propertySchema->type = is_numeric($v[0]) ? 'integer' : 'string';
+                    $arraySchema->items = $propertySchema;
                 }
                 $schema->properties[$k] = $arraySchema;
+            } elseif (is_object($v)) {
+                $schema->properties[$k] = $this->getPropertySchema($v);
             } else {
                 $propertySchema = new PrimitiveSchemaObject();
                 $propertySchema->type = is_numeric($v) ? 'integer' : 'string';
                 $schema->properties[$k] = $propertySchema;
             }
         }
-        
         return $schema;
     }
 
