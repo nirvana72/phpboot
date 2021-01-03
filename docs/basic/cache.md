@@ -10,7 +10,7 @@ PhpBoot 使用[doctrine/cache](http://doctrine-orm.readthedocs.io/projects/doctr
 
 ```php
 
-'redis' => \DI\object(\Doctrine\Common\Cache\RedisCache::class)
+'redis' => \DI\create(\Doctrine\Common\Cache\RedisCache::class)
     ->method('setRedis', \DI\factory(function(){
         $redis = new \Redis();
         $redis->connect('127.0.0.1', 6379);
@@ -34,6 +34,6 @@ private $redis;
 PhpBoot 框架为提高性能, 会将路由及Annotation 分析后的其他元信息进行缓存。生产环境建议使用 APC 扩展, 开发环境可以用文件缓存代替 apc, 方法是在 config.php 里加一个配置。
 
 ```php
-Cache::class => \DI\object(FilesystemCache::class)
+Cache::class => \DI\create(FilesystemCache::class)
     ->constructorParameter('directory', sys_get_temp_dir())
 ```

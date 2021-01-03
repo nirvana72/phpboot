@@ -56,10 +56,10 @@ class Application implements ContainerInterface, FactoryInterface, \DI\InvokerIn
      *      'DB.options' => [],
      *
      *
-     *      LoggerInterface::class => \DI\object(\Monolog\Logger::class)
+     *      LoggerInterface::class => \DI\create(\Monolog\Logger::class)
      *          ->constructor(\DI\get('App.name')),
      *      // 注意, 系统缓存, 只使用 apc、文件缓存等本地缓存, 不要使用 redis 等分布式缓存
-     *      Cache::class => \DI\object(FilesystemCache::class)
+     *      Cache::class => \DI\create(FilesystemCache::class)
      *          ->constructorParameter('directory', sys_get_temp_dir())
      * ];
      * ```
@@ -80,7 +80,7 @@ class Application implements ContainerInterface, FactoryInterface, \DI\InvokerIn
             'DB.password' => 'root',
             'DB.options' => [],
 
-            Application::class => \DI\object()
+            Application::class => \DI\create()
                 ->method('setUriPrefix', \DI\get('App.uriPrefix')),
 
             DB::class => \DI\factory([DB::class, 'connect'])
@@ -89,18 +89,18 @@ class Application implements ContainerInterface, FactoryInterface, \DI\InvokerIn
                 ->parameter('password', \DI\get('DB.password'))
                 ->parameter('options', \DI\get('DB.options')),
 
-            LoggerInterface::class => \DI\object(\Monolog\Logger::class)
+            LoggerInterface::class => \DI\create(\Monolog\Logger::class)
                 ->constructor(\DI\get('App.name')),
 
             Request::class => \DI\factory([Application::class, 'createRequestFromGlobals']),
         ];
         if(function_exists('apc_fetch')){
             $default += [
-                Cache::class => \DI\object(ApcCache::class)
+                Cache::class => \DI\create(ApcCache::class)
             ];
         }else{
             $default += [
-                Cache::class => \DI\object(FilesystemCache::class)
+                Cache::class => \DI\create(FilesystemCache::class)
                     ->constructorParameter('directory', sys_get_temp_dir())
             ];
         }
