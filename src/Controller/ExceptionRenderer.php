@@ -9,10 +9,10 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 class ExceptionRenderer
 {
     /**
-     * @param \Exception $e
+     * @param \Throwable $e
      * @return Response
      */
-    public function render(\Exception $e)
+    public function render(\Throwable $e)
     {
         if($e instanceof HttpException){
             return new Response($e->getMessage(), $e->getStatusCode(), $e->getHeaders());

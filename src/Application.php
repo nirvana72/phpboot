@@ -256,8 +256,6 @@ class Application implements ContainerInterface, FactoryInterface, \DI\InvokerIn
      */
     public function dispatch(Request $request = null, $send = true)
     {
-        //  TODO 把 Route里的异常处理 ExceptionRenderer 移到这里更妥?
-        $renderer = $this->get(ExceptionRenderer::class);
         try{
             if ($request == null) {
                 $request = $this->make(Request::class);
@@ -313,7 +311,9 @@ class Application implements ContainerInterface, FactoryInterface, \DI\InvokerIn
             }
             return $response;
 
-        }catch (\Exception $e){
+        }catch (\Throwable $e){
+            //  TODO 把 Route里的异常处理 ExceptionRenderer 移到这里更妥?
+            $renderer = $this->get(ExceptionRenderer::class);
             $response = $renderer->render($e);
             if ($send) {
                 $response->send();

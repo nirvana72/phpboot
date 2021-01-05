@@ -101,7 +101,7 @@ class Cors
         else {
             try{
                 $response = $next($request);
-            }catch(\Exception $e){
+            }catch(\Throwable $e){
                 $response = $this->exceptionRenderer->render($e);
             }
         }
