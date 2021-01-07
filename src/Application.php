@@ -3,7 +3,7 @@ namespace PhpBoot;
 
 use DI\Container;
 use DI\FactoryInterface;
-use Doctrine\Common\Cache\ApcCache;
+use Doctrine\Common\Cache\ApcuCache;
 use Doctrine\Common\Cache\Cache;
 use Doctrine\Common\Cache\FilesystemCache;
 use FastRoute\DataGenerator\GroupCountBased as GroupCountBasedDataGenerator;
@@ -20,11 +20,9 @@ use PhpBoot\Cache\ClassModifiedChecker;
 use PhpBoot\Controller\ControllerContainer;
 use PhpBoot\Controller\ExceptionRenderer;
 use PhpBoot\Controller\HookInterface;
-use PhpBoot\Controller\Route;
 use PhpBoot\DB\DB;
 use PhpBoot\DI\DIContainerBuilder;
 use PhpBoot\DI\Traits\EnableDIAnnotations;
-use PhpBoot\Lock\LocalAutoLock;
 use PhpBoot\Utils\Logger;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\ContainerInterface;
@@ -94,9 +92,9 @@ class Application implements ContainerInterface, FactoryInterface, \DI\InvokerIn
 
             Request::class => \DI\factory([Application::class, 'createRequestFromGlobals']),
         ];
-        if(function_exists('apc_fetch')){
+        if(function_exists('apcu_fetch')){
             $default += [
-                Cache::class => \DI\object(ApcCache::class)
+                Cache::class => \DI\object(ApcuCache::class)
             ];
         }else{
             $default += [
@@ -113,8 +111,7 @@ class Application implements ContainerInterface, FactoryInterface, \DI\InvokerIn
 
         Logger::setDefaultLogger($container->get(LoggerInterface::class));
 
-        $app = $container->make(self::class);
-        return $app;
+        return $container->make(self::class);
     }
 
     /**
@@ -161,6 +158,7 @@ class Application implements ContainerInterface, FactoryInterface, \DI\InvokerIn
             $this->routes[] = [
                 $method,
                 $uri,
+                // handler 在dispatch循环中调用
                 function (Application $app, Request $request) use ($cache, $className, $actionName, $controller) {
 
                     $key = 'loadRoutesFromClass:route:' . md5(__CLASS__ . ':' . $className . ':' . $actionName);
@@ -174,7 +172,8 @@ class Application implements ContainerInterface, FactoryInterface, \DI\InvokerIn
                         abort(new NotFoundHttpException("action $actionName not found"));
                         $cache->set($key, $routeInstance, 0, new ClassModifiedChecker($className));
                     }
-                    return ControllerContainer::dispatch($this, $className, $actionName, $routeInstance, $request);
+                    $ctlClass = $this->get($className); // $className like App\Controller\XXXController
+                    return $routeInstance->invoke($this, [$ctlClass, $actionName], $request); // 最终执行
                 },
                 $hooks
             ];
@@ -209,6 +208,7 @@ class Application implements ContainerInterface, FactoryInterface, \DI\InvokerIn
             }
             $path = $fromPath . '/' . str_replace('\\', '/', $entry);
             if (is_file($path)) {
+                // 只加载 Controller.php 结尾的文件, 其它忽略
                 if (substr($entry, -14) === 'Controller.php') {
                     $class_name = $namespace . '\\' . substr($entry, 0, -4);
                     $this->loadRoutesFromClass($class_name, $hooks);
@@ -260,7 +260,7 @@ class Application implements ContainerInterface, FactoryInterface, \DI\InvokerIn
     {
         try{
             if ($request == null) {
-                $request = $this->make(Request::class);
+                $request = $this->get(Request::class);
             }
             $uri = $request->getRequestUri();
             if (false !== $pos = strpos($uri, '?')) {
@@ -280,7 +280,7 @@ class Application implements ContainerInterface, FactoryInterface, \DI\InvokerIn
                     $next = function (Request $request)use($handler){
                         return $handler($this, $request);
                     };
-                    foreach (array_reverse($hooks) as $hookName){
+                    foreach (array_reverse($hooks) as $hookName){ // 这里的hooks 是指loadRoutesFromPath 第三个参数带的hook, 一般为空
                         $next = function($request)use($hookName, $next){
                             $hook = $this->get($hookName);
                             /**@var $hook HookInterface*/

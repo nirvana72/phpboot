@@ -1,7 +1,7 @@
 <?php
 
 namespace PhpBoot\Annotation;
-use Doctrine\Common\Cache\ApcCache;
+use Doctrine\Common\Cache\ApcuCache;
 use Doctrine\Common\Cache\Cache;
 use PhpBoot\Cache\CheckableCache;
 use PhpBoot\Cache\ClassModifiedChecker;
@@ -74,11 +74,11 @@ class AnnotationReader implements \ArrayAccess
         $fileName = $rfl->getFileName();
         $key = str_replace('\\','.',self::class).md5($fileName.$className);
         $oldData = null;
-        $cache = new CheckableCache($localCache?:new ApcCache());
+        $cache = new CheckableCache($localCache?:new ApcuCache());
         $res = $cache->get('ann:'.$key, null, $oldData, false);
         if($res === null){
             try{
-                $meta = self::readWithoutCache($className);
+                $meta = self::readWithoutCache($className); // meta = self
                 $cache->set($key, $meta, 0, $fileName?new ClassModifiedChecker($className):null);
                 return $meta;
             }catch (\Exception $e){
