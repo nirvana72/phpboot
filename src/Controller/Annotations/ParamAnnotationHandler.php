@@ -14,10 +14,8 @@ use PhpBoot\Utils\TypeHint;
 
 class ParamAnnotationHandler
 {
-
     static public function getParamInfo($text)
     {
-
         $paramType = null;
         $paramName = null;
         $paramDoc = '';
@@ -37,6 +35,7 @@ class ParamAnnotationHandler
         }
         return [$paramType, $paramName, $paramDoc];
     }
+
     /**
      * @param ControllerContainer $container
      * @param AnnotationBlock|AnnotationTag $ann
@@ -55,7 +54,7 @@ class ParamAnnotationHandler
             return ;
         }
         $className = $container->getClassName();
-
+        // 解析 @param 注解
         list($paramType, $paramName, $paramDoc) = self::getParamInfo($ann->description);
 
         $paramMeta = $route->getRequestHandler()->getParamMeta($paramName);
@@ -63,8 +62,7 @@ class ParamAnnotationHandler
         //TODO 检测声明的类型和注释的类型是否匹配
         if($paramType){
             $paramMeta->type = TypeHint::normalize($paramType, $className);//or \PhpBoot\abort(new AnnotationSyntaxException("{$container->getClassName()}::{$ann->parent->name} @{$ann->name} syntax error, param $paramName unknown type:$paramType "));
-            $container = ContainerFactory::create($entityBuilder, $paramMeta->type);
-            $paramMeta->container = $container;
+            $paramMeta->container = ContainerFactory::create($entityBuilder, $paramMeta->type);
         }
         $paramMeta->description = $paramDoc;
 

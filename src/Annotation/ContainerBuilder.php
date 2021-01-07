@@ -46,7 +46,7 @@ abstract class ContainerBuilder
         $res = $cache->get($key, $this);
         if($res === $this){
             try{
-                $meta = $this->buildWithoutCache($className);
+                $meta = $this->buildWithoutCache($className); // ControllerContainer::class
                 $cache->set($key, $meta, 0, $fileName?new ClassModifiedChecker($className):null);
                 return $meta;
             }catch (\Exception $e){
@@ -82,7 +82,7 @@ abstract class ContainerBuilder
     public function buildWithoutCache($className)
     {
         $container = $this->createContainer($className);
-        $anns = AnnotationReader::read($className, $this->cache);
+        $anns = AnnotationReader::read($className, $this->cache); // $this->cache 来自构造方法注入 fileCache 或 apcCache
         foreach ($this->annotations as $i){
             list($class, $target) = $i;
 

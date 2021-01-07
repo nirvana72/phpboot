@@ -53,17 +53,6 @@ class ControllerContainer
         }
         return false;
     }
-
-    static public function dispatch(
-        Application $app,
-        $className,
-        $actionName,
-        Route $route,
-        Request $request)
-    {
-        $ctrl = $app->get($className);
-        return $route->invoke($app, [$ctrl, $actionName], $request);
-    }
     
 //    /**
 //     * 应用路由, 使路由生效

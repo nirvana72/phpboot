@@ -45,7 +45,7 @@ class RouteAnnotationHandler
         //获取方法参数信息
         $rfl =  new \ReflectionClass($container->getClassName());
         $method = $rfl->getMethod($target);
-        $methodParams = $method->getParameters();
+        $methodParams = $method->getParameters(); // 方法的参数
 
         $uri = $params->getParam(1);
         $uri = rtrim($container->getUriPrefix(), '/').'/'.ltrim($uri, '/');
@@ -59,7 +59,7 @@ class RouteAnnotationHandler
             $requestHandler,
             $responseHandler,
             $exceptionHandler,
-            [],
+            [], // hooks 一会在HookAnn中解析给予
             $ann->parent->summary,
             $ann->parent->description
         );
@@ -81,33 +81,28 @@ class RouteAnnotationHandler
         $paramsMeta = [];
         foreach ($methodParams as $param){
             $paramName = $param->getName();
-            $source = "request.$paramName";
-            if($route->hasPathParam($paramName)){ //参数来自路由
-                $source = "request.$paramName";
-            }elseif($httpMethod == 'GET'){
-                $source = "request.$paramName"; //GET请求显示指定来自query string
-            }
             $paramClass = $param->getClass();
-            if($paramClass){
+            if($paramClass){ // 如果参数是个Class
                 $paramClass = $paramClass->getName();
             }
             $entityContainer = ContainerFactory::create($entityBuilder, $paramClass);
             $meta = new ParamMeta($paramName,
-                $source,
-                $paramClass?:'mixed',
+                "request.$paramName",
+                $paramClass?:'mixed', // 参数类型如不是类，这里先mixed, 在ParamAnn中根据注解内容重新定义
                 $param->isOptional(),
                 $param->isOptional()?$param->getDefaultValue():null,
-                $param->isPassedByReference(),
-                null,
-                '',
+                $param->isPassedByReference(), // 是否引用参数
+                null, // 验证，一会在ValidateAnn中解析给予
+                '', // 描述，一会在ParamAnn中解析给予
                 $entityContainer
             );
             $paramsMeta[] = $meta;
-            if($meta->isPassedByReference){
+            if($meta->isPassedByReference){ // 是否引用参数
                 $hasRefParam = true;
                 $responseHandler->setMapping('response.content.'.$meta->name, new ReturnMeta(
                     'params.'.$meta->name,
-                    $meta->type, $meta->description,
+                    $meta->type, 
+                    $meta->description,
                     ContainerFactory::create($entityBuilder, $meta->type)
                 ));
             }

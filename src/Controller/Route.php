@@ -58,7 +58,7 @@ class Route
                         $parameters['params'] = '';
                         
                         if (strpos($hookName, '@')) {
-                          // @nij hookname 如果有参数， 会带在参数名后面，以@xxx形式存在
+                          // @nij $hookName 如果有参数， 会带在参数名后面，以@xxx形式存在
                           $arr = explode('@', $hookName);
                           $hookName = $arr[0];
                           $parameters['params'] = $arr[1];
