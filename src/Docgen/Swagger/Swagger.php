@@ -113,7 +113,6 @@ class Swagger extends SwaggerObject
                 $schema->properties[$dataName] = $this->getPropertySchema($obj);
             } 
             elseif (strpos($returnString, 'int[]') === 0) {
-                $returnString = trim(substr($returnString,  5));
                 $propertySchema = new PrimitiveSchemaObject();
                 $propertySchema->type = 'integer';
                 $arraySchema = new ArraySchemaObject();
@@ -126,7 +125,6 @@ class Swagger extends SwaggerObject
                 $schema->properties[$dataName] = $msgSchema;
             } 
             elseif (strpos($returnString, 'string[]') === 0) {
-                $returnString = trim(substr($returnString,  5));
                 $propertySchema = new PrimitiveSchemaObject();
                 $propertySchema->type = 'string';
                 $arraySchema = new ArraySchemaObject();
@@ -278,70 +276,6 @@ class Swagger extends SwaggerObject
      * @param ControllerContainer $controller
      * @param $action
      * @param Route $route
-     * @param array $arr
-     * @param string $suffix
-     * @return RefSchemaObject
-     */
-    public function makeTempSchema(Application $app,
-                                   ControllerContainer $controller,
-                                   $action,
-                                   Route $route,
-                                   array $arr, $suffix)
-    {
-        $className = self::getShortClassName($controller->getClassName());
-        $name = $className . ucfirst($action) . $suffix;
-
-        $schema = new SimpleModelSchemaObject();
-
-        foreach ($arr as $k => $v) {
-            if (is_array($v)) {
-                $schema->properties[$k] = $this->makeTempSchema($app, $controller, $action, $route, $v, $suffix);
-            } elseif ($v instanceof ReturnMeta) {
-                $sub = $this->getAnySchema($app, $controller, $action, $route, $v->container);
-                if($sub){
-                    $sub->description = $v->description;
-                }
-                $schema->properties[$k] = $sub;
-            } elseif ($v instanceof ParamMeta) {
-                if ($v->container instanceof ArrayContainer) {
-                    $sub = $this->getArraySchema($app, $controller, $action, $route, $v->container);
-                    //TODO array for validation
-                } elseif ($v->container instanceof EntityContainer) {
-                    $sub = $this->getRefSchema($app, $controller, $action, $route, $v->container);
-                    //TODO array for validation
-                } else {
-                    $sub = new PrimitiveSchemaObject();
-                    $sub->type = self::mapType($v->type);
-                    self::mapValidation($v->validation, $sub);
-                    unset($sub->required);
-                }
-                if($sub){
-                    $sub->description = $v->description;
-                    $sub->default = $v->default;
-                }
-                if (!$v->isOptional) {
-                    $schema->required[] = $k;
-                }
-                $schema->properties[$k] = $sub;
-            } else {
-                //TODO how to do?
-            }
-        }
-        $unused = $name;
-        $tempId = 0;
-        while (isset($this->definitions[$unused])) {
-            $unused = $name . $tempId;
-            $tempId++;
-        }
-        $this->definitions[$unused] = $schema;
-        return new RefSchemaObject("#/definitions/$unused");
-    }
-
-    /**
-     * @param Application $app
-     * @param ControllerContainer $controller
-     * @param $action
-     * @param Route $route
      * @param EntityContainer $container
      * @return RefSchemaObject
      */
@@ -366,53 +300,28 @@ class Swagger extends SwaggerObject
         $params = $route->getRequestHandler()->getParamMetas();
         $parameters = [];
         $body = [];
-        $in = 'query';
-
-        $bodyType = 'body'; // 当有文件上传时, 必须是formData方式
-        if($this->hasFileParam($route)){
-            $bodyType = 'formData';
-        }
 
         foreach ($params as $name => $param) {
-            $isFile = false;
             if ($param->isPassedByReference) {
                 continue;
             }
-            if ($param->source == 'request.request') {
-                $in = $bodyType;
-                $name = '';
-            } elseif (strpos($param->source, 'request.request.') === 0
-                || $param->source == 'request.request'
-            ) {
-                $in = $bodyType;
-                $name = substr($param->source, strlen('request.request.'));
-            } elseif (strpos($param->source, 'request.query.') === 0) {
+
+            $name = substr($param->source, strlen('request.'));
+            if ($route->hasPathParam($param->name)) {
+                $in = 'path';
+            } elseif (in_array($route->getMethod(), ['POST', 'PUT', 'PATCH'])) {
+                $in = 'body';
+            } else {
                 $in = 'query';
-                $name = substr($param->source, strlen('request.query.'));
-            } elseif (strpos($param->source, 'request.cookies.') === 0) {
-                $in = 'cookie';
-                $name = substr($param->source, strlen('request.cookies.'));
-            } elseif (strpos($param->source, 'request.headers.') === 0) {
-                $in = 'header';
-                $name = substr($param->source, strlen('request.headers.'));
-            } elseif (strpos($param->source, 'request.files.') === 0) {
-                $isFile = true;
-                $in = $bodyType;
-                $name = substr($param->source, strlen('request.files.'));
-            } elseif (strpos($param->source, 'request.') === 0) {
-                $name = substr($param->source, strlen('request.'));
-                if ($route->hasPathParam($param->name)) {
-                    $in = 'path';
-                } elseif ($route->getMethod() == 'POST'
-                    || $route->getMethod() == 'PUT'
-                    || $route->getMethod() == 'PATCH'
-                ) {
-                    $in = $bodyType;
-                } else {
-                    $in = 'query';
-                }
             }
-            if ($in != 'body') {
+
+            if ($in === 'body') {
+                if (!$name) {
+                    $body = $param;
+                } else {
+                    ArrayHelper::set($body, $name, $param);
+                }
+            } else {
                 if ($param->container instanceof ArrayContainer) {
                     $paramSchema = $this->getArraySchema($app, $controller, $action, $route, $param->container);
                     //TODO array for validation
@@ -421,13 +330,8 @@ class Swagger extends SwaggerObject
                     //TODO array for validation
                 } else {
                     $paramSchema = new PrimitiveSchemaObject();
-                    if($isFile){
-                        $paramSchema->type = 'file';
-                    }else{
-                        $paramSchema->type = self::mapType($param->type);
-                        self::mapValidation($param->validation, $paramSchema);
-                    }
-
+                    $paramSchema->type = self::mapType($param->type);
+                    self::mapValidation($param->validation, $paramSchema);
                 }
                 $paramSchema->in = $in;
                 $paramSchema->name = $name;
@@ -435,55 +339,72 @@ class Swagger extends SwaggerObject
                 $paramSchema->default = $param->default;
                 $paramSchema->required = !$param->isOptional;
                 $parameters[] = $paramSchema;
-            } else {
-                if (!$name) {
-                    $body = $param;
-                } else {
-                    ArrayHelper::set($body, $name, $param);
-                }
-
             }
         }
-        if ($body && $bodyType == 'body') {
 
+        if ($body) {
             $paramSchema = new BodyParameterObject();
             $paramSchema->name = 'body';
             $paramSchema->in = 'body';
-            if (is_array($body)) {
-                $paramSchema->schema = $this->makeTempSchema($app, $controller, $action, $route, $body, 'Req');
-            } else {
-                $paramSchema->schema = $this->getAnySchema($app, $controller, $action, $route, $body->container);
-            }
-
+            $paramSchema->schema = $this->getRequestSchema($body);
             $parameters[] = $paramSchema;
         }
 
         return $parameters;
     }
 
-    /**
-     * @param Application $app
-     * @param ControllerContainer $controller
-     * @param $action
-     * @param Route $route
-     * @param TypeContainerInterface $container
-     * @return ArraySchemaObject|PrimitiveSchemaObject|RefSchemaObject
-     */
-    public function getAnySchema(Application $app, ControllerContainer $controller, $action, Route $route, $container)
-    {
-        if ($container instanceof EntityContainer) {
-            $schema = $this->getRefSchema($app, $controller, $action, $route, $container);
-        } elseif ($container instanceof ArrayContainer) {
-            $schema = $this->getArraySchema($app, $controller, $action, $route, $container);
-        } elseif ($container instanceof ScalarTypeContainer) {
-            $schema = new PrimitiveSchemaObject();
-            $schema->type = self::mapType($container->getType());
-        } elseif($container == null){
-            $schema = null ;//new PrimitiveSchemaObject();
-            //$schema->type = null;
-        }else {
-            $schema = new PrimitiveSchemaObject();
-            //$schema->type = 'mixed';
+    // 解析请求参数对象
+    private function getRequestSchema($params) {
+        $schema = new SimpleModelSchemaObject();
+        foreach($params as $param) {
+            // 如果参数是个数组
+            if ($param->container instanceof ArrayContainer) {
+                $arraySchema = new ArraySchemaObject();
+                $itemContainer = $param->container->getContainer();
+                if ($itemContainer instanceof ScalarTypeContainer) { // 数组是普通类型
+                    $propertySchema = new PrimitiveSchemaObject();
+                    $propertySchema->type = self::mapType($itemContainer->getType());
+                    $arraySchema->items = $propertySchema;
+                }
+                if ($itemContainer instanceof EntityContainer) {  // 数组是对象类型
+                    $props = $itemContainer->getProperties();
+                    $arraySchema->items = $this->getRequestEntitySchema($props);
+                }
+                $schema->properties[$param->name] = $arraySchema;
+            }
+            // 参数是个对象
+            if ($param->container instanceof EntityContainer) {
+                $props = $param->container->getProperties();
+                $schema->properties[$param->name] = $this->getRequestEntitySchema($props);
+            }
+            // 参数是普通类型
+            if ($param->container instanceof ScalarTypeContainer) {
+                $propertySchema = new PrimitiveSchemaObject();
+                $propertySchema->type = self::mapType($param->container->getType());
+                $schema->properties[$param->name] = $propertySchema;
+            }
+        }
+        return $schema;
+    }
+
+    // 如果参数是个实体
+    private function getRequestEntitySchema($props) {
+        $schema = new SimpleModelSchemaObject();
+        foreach ($props as $key => $prop) {
+            if (trim(substr($prop->type, -2)) === '[]') {
+                // 对象里参数是个数组
+                $type = substr($prop->type, 0,-2);
+                $arraySchema = new ArraySchemaObject();
+                $propertySchema = new PrimitiveSchemaObject();
+                $propertySchema->type = self::mapType($type);
+                $arraySchema->items = $propertySchema;
+                $schema->properties[$key] = $arraySchema;
+            } else {
+                // 对象里参数是个普通类型
+                $propertySchema = new PrimitiveSchemaObject();
+                $propertySchema->type = self::mapType($prop->type);
+                $schema->properties[$key] = $propertySchema;
+            }
         }
         return $schema;
     }
