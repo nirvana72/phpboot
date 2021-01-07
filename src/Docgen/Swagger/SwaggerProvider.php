@@ -26,11 +26,11 @@ class SwaggerProvider
                                     $namesapces)
     {
       foreach($namesapces as $key => $namesapce) {
-        $app->addRoute('GET', "/swagger/{$key}.json", function (Application $app) use($callback, $namesapce){
+        $app->addRoute('GET', "/swagger/{$key}.json", function (Application $app) use($callback, $namesapce, $key){
           $swagger = new Swagger();
           $swagger->appendControllers($app, $app->getControllers($namesapce));
           if($callback){
-              $callback($swagger);
+              $callback($swagger, $key);
           }
           return new Response($swagger->toJson());
         });
